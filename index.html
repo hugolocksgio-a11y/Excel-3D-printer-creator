@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Product Order Editor</title>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f3f5fa}
+*{box-sizing:border-box}body{margin:0;padding:28px 16px 56px}.wrap{max-width:1000px;margin:auto}
+header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:24px}
+h1{font-size:clamp(26px,4vw,36px);margin:0;letter-spacing:-1px}header p{margin:7px 0 0;color:#647089}
+.panel{background:white;border:1px solid #e3e7f0;border-radius:18px;padding:22px;margin:16px 0;box-shadow:0 8px 26px #24345a0b}
+h2{font-size:20px;margin:0 0 16px}.muted{color:#69758d;font-size:13px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.product{border:1px solid #e6eaf2;border-radius:13px;padding:14px;margin:10px 0}
+.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.row>*{flex:1}
+input{min-width:0;width:100%;padding:10px 11px;border:1px solid #d8deea;border-radius:9px;font:inherit;background:#fff}
+button{border:0;border-radius:10px;padding:10px 14px;font:600 14px inherit;cursor:pointer;background:#edf1f8;color:#25324a}
+button.primary{background:#455ce9;color:#fff;padding:15px 22px;font-size:16px}button.danger{color:#b42318;background:#fff0ef}button.small{padding:8px 10px}
+.actions{display:flex;gap:8px;align-items:center;justify-content:flex-end}.size-row{display:grid;grid-template-columns:1fr 130px auto;gap:8px;margin-top:8px}
+.person-row{display:grid;grid-template-columns:1fr 130px auto;gap:8px;margin:9px 0}
+footer{display:flex;justify-content:center;margin:26px 0 8px}.note{font-size:13px;color:#68758c;margin-top:10px}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.panel{padding:16px}.size-row,.person-row{grid-template-columns:1fr 105px auto}header{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body><main class="wrap">
+<header><div><h1>Product Order Editor</h1><p>Manage products, options and discounts, then create your order workbook.</p></div></header>
+<section class="panel"><h2>Products & prices</h2><div id="products"></div><button id="addProduct">＋ Add product</button></section>
+<section class="panel"><h2>People & discounts</h2><div id="people"></div><button id="addPerson">＋ Add person</button><p class="note">Enter discounts as percentages, for example 10 for 10%.</p></section>
+<section class="panel"><h2>Ready to create your workbook?</h2><p class="muted">The Excel file includes 100 order rows, dropdowns, automatic prices and discounts, and hidden lookup sheets.</p><button class="primary" id="download">DOWNLOAD & SHARE</button><p id="status" class="note" role="status"></p></section>
+</main>
+<script>
+const defaults=[
+{name:"Mat",sizes:[{name:"Small",price:1.5},{name:"Large",price:2.5}]},
+{name:"Switch",sizes:[{name:"Small",price:1}]},
+{name:"Clicker",sizes:[{name:"1 Button",price:2},{name:"2 Button",price:3},{name:"3 Button",price:4},{name:"4 Button",price:5}]},
+{name:"Yes No Button",sizes:[{name:"Standard",price:3}]},
+{name:"Duck Whistle",sizes:[{name:"Standard",price:2}]},
+{name:"Kazoo",sizes:[{name:"Standard",price:2}]},
+{name:"Death Whistle",sizes:[{name:"Standard",price:15}]}
+];
+let products=load("poe-products",defaults), people=load("poe-people",[]);
+function load(key,fallback){try{const v=JSON.parse(localStorage.getItem(key));return Array.isArray(v)?v:fallback}catch{return fallback}}
+function save(){localStorage.setItem("poe-products",JSON.stringify(products));localStorage.setItem("poe-people",JSON.stringify(people))}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function render(){
+ const root=document.getElementById("products");root.innerHTML="";
+ products.forEach((p,i)=>{const card=document.createElement("div");card.className="product";
+ card.innerHTML='<div class="row"><input aria-label="Product name" value="'+esc(p.name)+'" data-pname="'+i+'"><div class="actions"><button class="danger small" data-remove-product="'+i+'">Delete product</button></div></div><div data-sizes="'+i+'"></div><button class="small" data-add-size="'+i+'">＋ Add size / option</button>';
+ root.append(card);const sizes=card.querySelector('[data-sizes="'+i+'"]');
+ (p.sizes||[]).forEach((s,j)=>{const line=document.createElement("div");line.className="size-row";line.innerHTML='<input aria-label="Size or option" value="'+esc(s.name)+'" data-sname="'+i+','+j+'"><input aria-label="Price" type="number" min="0" step="0.01" value="'+Number(s.price||0)+'" data-price="'+i+','+j+'"><button class="danger small" data-remove-size="'+i+','+j+'">×</button>';sizes.append(line)});
+ });
+ const pr=document.getElementById("people");pr.innerHTML="";
+ people.forEach((p,i)=>{const line=document.createElement("div");line.className="person-row";line.innerHTML='<input aria-label="Person name" value="'+esc(p.name)+'" data-person="'+i+'"><input aria-label="Discount percentage" type="number" min="0" max="100" step="0.1" value="'+Number(p.discount||0)+'" data-discount="'+i+'"><button class="danger small" data-remove-person="'+i+'">Delete</button>';pr.append(line)});
+}
+document.addEventListener("input",e=>{
+ const d=e.target.dataset;
+ if(d.pname!==undefined)products[+d.pname].name=e.target.value;
+ if(d.sname){const [i,j]=d.sname.split(",").map(Number);products[i].sizes[j].name=e.target.value}
+ if(d.price){const [i,j]=d.price.split(",").map(Number);products[i].sizes[j].price=Number(e.target.value)}
+ if(d.person!==undefined)people[+d.person].name=e.target.value;
+ if(d.discount!==undefined)people[+d.discount].discount=Number(e.target.value);
+ save();
+});
+document.addEventListener("click",e=>{
+ const d=e.target.dataset;
+ if(d.removeProduct!==undefined){products.splice(+d.removeProduct,1);render();save()}
+ if(d.addSize!==undefined){products[+d.addSize].sizes.push({name:"New option",price:0});render();save()}
+ if(d.removeSize){const [i,j]=d.removeSize.split(",").map(Number);products[i].sizes.splice(j,1);render();save()}
+ if(d.removePerson!==undefined){people.splice(+d.removePerson,1);render();save()}
+});
+document.getElementById("addProduct").onclick=()=>{products.push({name:"New product",sizes:[{name:"Standard",price:0}]});render();save()};
+document.getElementById("addPerson").onclick=()=>{people.push({name:"",discount:0});render();save()};
+function safeName(i){return "Product_"+(i+1)}
+document.getElementById("download").onclick=async()=>{
+ const status=document.getElementById("status");
+ try{
+  if(!window.ExcelJS)throw new Error("The Excel workbook library did not load. Check your internet connection and try again.");
+  const cleanProducts=products.filter(p=>p.name.trim()&&p.sizes?.some(s=>s.name.trim()));
+  const cleanPeople=people.filter(p=>p.name.trim());
+  if(!cleanProducts.length)throw new Error("Please add at least one product with a size or option.");
+  const wb=new ExcelJS.Workbook();wb.creator="Product Order Editor";wb.subject="Product order workbook";
+  const orders=wb.addWorksheet("Orders");const price=wb.addWorksheet("Price List");const discounts=wb.addWorksheet("Discounts");
+  orders.columns=[{header:"Person",key:"person",width:22},{header:"Product",key:"product",width:24},{header:"Size / Option",key:"size",width:20},{header:"Base Price",key:"base",width:14},{header:"Discount",key:"discount",width:14},{header:"Final Price",key:"final",width:16}];
+  orders.getRow(1).font={bold:true,color:{argb:"FFFFFFFF"}};orders.getRow(1).fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF455CE9"}};
+  price.getCell("A1").value="Product";price.getCell("B1").value="Size / Option";price.getCell("C1").value="Price";
+  let pr=2;const nameRanges=[];
+  cleanProducts.forEach((p,i)=>{
+   const start=pr;
+   p.sizes.filter(s=>s.name.trim()).forEach(s=>{price.getCell(pr,1).value=p.name;price.getCell(pr,2).value=s.name;price.getCell(pr,3).value=Number(s.price)||0;pr++});
+   const sizeStart=2, sizeCol=i+5;
+   price.getCell(1,sizeCol).value=p.name;
+   p.sizes.filter(s=>s.name.trim()).forEach((s,j)=>{price.getCell(j+2,sizeCol).value=s.name});
+   nameRanges.push({name:safeName(i),range:"'Price List'!$"+String.fromCharCode(64+sizeCol)+"$2:$"+String.fromCharCode(64+sizeCol)+"$"+(p.sizes.filter(s=>s.name.trim()).length+1)});
+  });
+  const productCol=cleanProducts.map(p=>p.name);
+  productCol.forEach((v,i)=>price.getCell(i+2,4).value=v);
+  const productEnd=productCol.length+1;
+  wb.definedNames.add("'Price List'!$D$2:$D$"+productEnd,"ProductList");
+  nameRanges.forEach(n=>wb.definedNames.add(n.range,n.name));
+  discounts.getCell("A1").value="Person";discounts.getCell("B1").value="Discount";
+  cleanPeople.forEach((p,i)=>{discounts.getCell(i+2,1).value=p.name;discounts.getCell(i+2,2).value=(Number(p.discount)||0)/100});
+  const discountEnd=Math.max(2,cleanPeople.length+1);
+  for(let r=2;r<=101;r++){
+   orders.getCell(r,1).value="";
+   orders.getCell(r,2).dataValidation={type:"list",allowBlank:true,formulae:["=ProductList"]};
+   orders.getCell(r,3).dataValidation={type:"list",allowBlank:true,formulae:['=INDIRECT("Product_"&MATCH(B'+r+',ProductList,0))']};
+   orders.getCell(r,4).value={formula:'IF(OR(B'+r+'="",C'+r+'=""),"",SUMIFS(\'Price List\'!$C$2:$C$'+(pr-1)+',\'Price List\'!$A$2:$A$'+(pr-1)+',B'+r+',\'Price List\'!$B$2:$B$'+(pr-1)+',C'+r+'))'};
+   orders.getCell(r,5).value={formula:'IF(A'+r+'="","",IFERROR(VLOOKUP(A'+r+',Discounts!$A$2:$B$'+discountEnd+',2,FALSE),0))'};
+   orders.getCell(r,6).value={formula:'IF(D'+r+'="","",ROUND(D'+r+'*(1-E'+r+'),2))'};
+   orders.getCell(r,4).numFmt='"$"#,##0.00';orders.getCell(r,5).numFmt='0%';orders.getCell(r,6).numFmt='"$"#,##0.00';
+  }
+  price.state="hidden";discounts.state="hidden";
+  const buffer=await wb.xlsx.writeBuffer();const blob=new Blob([buffer],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="Product_Order_Pricing_Tracker.xlsx";a.click();URL.revokeObjectURL(url);
+  status.textContent="Your Excel workbook has been downloaded. You can now share the file."; 
+ }catch(err){status.textContent="Could not create the workbook: "+err.message}
+};
+render();
+</script></body></html>
