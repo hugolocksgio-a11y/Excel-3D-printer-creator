@@ -27,7 +27,7 @@ footer{display:flex;justify-content:center;margin:26px 0 8px}.note{font-size:13p
 <header><div><h1>Product Order Editor</h1><p>Manage products, options and discounts, then create your order workbook.</p></div></header>
 <section class="panel"><h2>Products & prices</h2><div id="products"></div><button id="addProduct">＋ Add product</button></section>
 <section class="panel"><h2>People & discounts</h2><div id="people"></div><button id="addPerson">＋ Add person</button><p class="note">Enter discounts as percentages, for example 10 for 10%.</p></section>
-<section class="panel"><h2>Ready to create your workbook?</h2><p class="muted">The Excel file includes 100 order rows, dropdowns, automatic prices and discounts, and hidden lookup sheets.</p><button class="primary" id="download">DOWNLOAD & SHARE</button><p id="status" class="note" role="status"></p></section>
+<section class="panel"><h2>Ready to create your workbook?</h2><p class="muted">The Excel file includes order rows through row 10,000, dropdowns, automatic prices and discounts, and hidden lookup sheets.</p><button class="primary" id="download">DOWNLOAD & SHARE</button><p id="status" class="note" role="status"></p></section>
 </main>
 <script>
 const defaults=[
@@ -101,17 +101,17 @@ document.getElementById("download").onclick=async()=>{
   discounts.getCell("A1").value="Person";discounts.getCell("B1").value="Discount";
   cleanPeople.forEach((p,i)=>{discounts.getCell(i+2,1).value=p.name;discounts.getCell(i+2,2).value=(Number(p.discount)||0)/100});
   const discountEnd=Math.max(2,cleanPeople.length+1);
-  for(let r=2;r<=101;r++){
+  for(let r=2;r<=10000;r++){
    orders.getCell(r,1).value="";
    orders.getCell(r,2).dataValidation={type:"list",allowBlank:true,formulae:["=ProductList"]};
    orders.getCell(r,3).dataValidation={type:"list",allowBlank:true,formulae:['=INDIRECT("Product_"&MATCH(B'+r+',ProductList,0))']};
    orders.getCell(r,4).value={formula:'IF(OR(B'+r+'="",C'+r+'=""),"",SUMIFS(\'Price List\'!$C$2:$C$'+(pr-1)+',\'Price List\'!$A$2:$A$'+(pr-1)+',B'+r+',\'Price List\'!$B$2:$B$'+(pr-1)+',C'+r+'))'};
    orders.getCell(r,5).value={formula:'IF(A'+r+'="","",IFERROR(VLOOKUP(A'+r+',Discounts!$A$2:$B$'+discountEnd+',2,FALSE),0))'};
    orders.getCell(r,6).value={formula:'IF(D'+r+'="","",ROUND(D'+r+'*(1-E'+r+'),2))'};
-   orders.getCell(r,7).value="☐";
-   orders.getCell(r,7).dataValidation={type:"list",allowBlank:false,formulae:['"☐,☑"']};
+   orders.getCell(r,7).value="□";
+   orders.getCell(r,7).dataValidation={type:"list",allowBlank:false,formulae:['"□,☑"']};
    orders.getCell(r,7).alignment={horizontal:"center",vertical:"middle"};
-   orders.getCell(r,7).font={size:16};
+   orders.getCell(r,7).font={name:"Arial",size:16};
    orders.getCell(r,4).numFmt='"$"#,##0.00';orders.getCell(r,5).numFmt='0%';orders.getCell(r,6).numFmt='"$"#,##0.00';
   }
   price.state="hidden";discounts.state="hidden";
