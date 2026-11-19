@@ -81,7 +81,7 @@ document.getElementById("download").onclick=async()=>{
   if(!cleanProducts.length)throw new Error("Please add at least one product with a size or option.");
   const wb=new ExcelJS.Workbook();wb.creator="Product Order Editor";wb.subject="Product order workbook";
   const orders=wb.addWorksheet("Orders");const price=wb.addWorksheet("Price List");const discounts=wb.addWorksheet("Discounts");
-  orders.columns=[{header:"Person",key:"person",width:22},{header:"Product",key:"product",width:24},{header:"Size / Option",key:"size",width:20},{header:"Base Price",key:"base",width:14},{header:"Discount",key:"discount",width:14},{header:"Final Price",key:"final",width:16}];
+  orders.columns=[{header:"Person",key:"person",width:22},{header:"Product",key:"product",width:24},{header:"Size / Option",key:"size",width:20},{header:"Base Price",key:"base",width:14},{header:"Discount",key:"discount",width:14},{header:"Final Price",key:"final",width:16},{header:"Completed",key:"completed",width:14}];
   orders.getRow(1).font={bold:true,color:{argb:"FFFFFFFF"}};orders.getRow(1).fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF455CE9"}};
   price.getCell("A1").value="Product";price.getCell("B1").value="Size / Option";price.getCell("C1").value="Price";
   let pr=2;const nameRanges=[];
@@ -108,6 +108,10 @@ document.getElementById("download").onclick=async()=>{
    orders.getCell(r,4).value={formula:'IF(OR(B'+r+'="",C'+r+'=""),"",SUMIFS(\'Price List\'!$C$2:$C$'+(pr-1)+',\'Price List\'!$A$2:$A$'+(pr-1)+',B'+r+',\'Price List\'!$B$2:$B$'+(pr-1)+',C'+r+'))'};
    orders.getCell(r,5).value={formula:'IF(A'+r+'="","",IFERROR(VLOOKUP(A'+r+',Discounts!$A$2:$B$'+discountEnd+',2,FALSE),0))'};
    orders.getCell(r,6).value={formula:'IF(D'+r+'="","",ROUND(D'+r+'*(1-E'+r+'),2))'};
+   orders.getCell(r,7).value="☐";
+   orders.getCell(r,7).dataValidation={type:"list",allowBlank:false,formulae:['"☐,☑"']};
+   orders.getCell(r,7).alignment={horizontal:"center",vertical:"middle"};
+   orders.getCell(r,7).font={size:16};
    orders.getCell(r,4).numFmt='"$"#,##0.00';orders.getCell(r,5).numFmt='0%';orders.getCell(r,6).numFmt='"$"#,##0.00';
   }
   price.state="hidden";discounts.state="hidden";
